@@ -27,6 +27,21 @@ jobs:
           unzip -q *.zip -d projeto
           echo "PROJECT_DIR=$(dirname "$(find projeto -name settings.gradle -print -quit)")" >> $GITHUB_ENV
 
+      - name: Corrigir configuração do Gradle
+        run: |
+          python3 - <<'PY'
+          import os
+          p = os.environ["PROJECT_DIR"] + "/gradle.properties"
+          lines = []
+          if os.path.exists(p):
+              with open(p) as f:
+                  lines = f.readlines()
+          lines = [x for x in lines if not x.startswith("org.gradle.jvmargs=") and not x.startswith("android.useAndroidX=")]
+          lines += ["org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\n", "android.useAndroidX=true\n"]
+          with open(p, "w") as f:
+              f.writelines(lines)
+          PY
+
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -35,11 +50,12 @@ jobs:
       - name: Compilar APK
         run: |
           cd "$PROJECT_DIR"
-          gradle assembleDebug
+          gradle --no-daemon assembleDebug
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
           name: BLOCKS-RUDS-APK
           path: projeto/**/app/build/outputs/apk/debug/*.apk
+          
           
